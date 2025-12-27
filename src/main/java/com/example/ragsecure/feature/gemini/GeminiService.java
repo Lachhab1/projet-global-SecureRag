@@ -41,4 +41,45 @@ public class GeminiService {
                 })
                 .body(String.class);
     }
+
+    public float[] getEmbedding(String text) {
+        var requestBody = Map.of(
+                "model", "models/text-embedding-004",
+                "content", Map.of("parts", List.of(Map.of("text", text))));
+
+        RestClient embeddingClient = RestClient.builder()
+                .baseUrl("https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent")
+                .build();
+
+        String response = embeddingClient.post()
+                .uri(uriBuilder -> uriBuilder.queryParam("key", apiKey).build())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(requestBody)
+                .retrieve()
+                .body(String.class);
+
+        return parseEmbedding(response);
+    }
+
+    private float[] parseEmbedding(String jsonResponse) {
+        // Quick and dirty manual parsing to avoid strict JSON dependencies for this
+        // simple base
+        // In production, use Jackson's ObjectMapper
+        try {
+            int startIndex = jsonResponse.indexOf("\"values\": [");
+            if (startIndex == -1)
+                return new float[0];
+            int endIndex = jsonResponse.indexOf("]", startIndex);
+            String valuesStr = jsonResponse.substring(startIndex + 11, endIndex);
+            String[] parts = valuesStr.split(",");
+            float[] embedding = new float[parts.length];
+            for (int i = 0; i < parts.length; i++) {
+                embedding[i] = Float.parseFloat(parts[i].trim());
+            }
+            return embedding;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new float[0];
+        }
+    }
 }
